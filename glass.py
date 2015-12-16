@@ -2,7 +2,9 @@
 
 import click
 import requests
-import os, os.path, json, mimetypes
+import os, os.path, json, mimetypes, fnmatch, hashlib
+import pathspec
+from pathspec.gitignore import GitIgnorePattern
 
 def mkdir_p(path):
     if path and not os.path.exists(path):
@@ -10,25 +12,39 @@ def mkdir_p(path):
 
 class Glass(object):
 
-    def __init__(self, email, password, glass_url=None, site=None, **kwargs):
+    spec = None
+
+    def __init__(self, email, password, glass_url=None, site=None, config_path=None, **kwargs):
         self.email = email
         self.password = password
         self.glass_url = glass_url
+
+
+
         self.site = site
+        self.exclude = kwargs.pop('exclude', [])
+        self.exclude.append('.glass')
+
+        self.config_path = config_path
 
         if not glass_url:
-            self.glass_patrol_url = os.getenv('GLASS_PATROL_URL', 'http://localhost:8001/')
+            self.glass_url = os.getenv('GLASS_PATROL_URL', 'http://localhost:8001/')
 
+        if self.glass_url[-1] != '/':
+            self.glass_url += '/'
+
+        if self.site.get('url') and (self.site['url'][-1] != '/'):
+            self.site['url'][-1] += '/'
 
     def patrol_req(self, path, method="GET"):
         response = requests.request(
             method,
-            "{}{}".format(self.glass_patrol_url, path),
+            "{}{}".format(self.glass_url, path),
             auth=(self.email, self.password),
         )
         try:
             return response.json()
-        except Exception, exc:
+        except Exception as exc:
             import ipdb; ipdb.set_trace()
 
     def site_req(self, path, method="GET"):
@@ -77,11 +93,19 @@ class Glass(object):
             click.echo("Changing working directory to glass root at : {}".format(config_path))
             os.chdir(config_path)
 
-        with open(os.path.join(config_path, ".glass", "config"), 'rb') as fb:
-            cfg_dict = json.loads(fb.read())
+        with open(os.path.join(config_path, ".glass", "config"), 'r') as fb:
+            try:
+                cfg_dict = json.load(fb)
+            except ValueError:
+                click.UsageError("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
 
-        return cls(**cfg_dict)
+        return cls(config_path=config_path, **cfg_dict)
 
+    def load_ignore(self):
+        with open(os.path.join(self.config_path, ".glass", "ignore"), 'r') as fb:
+            self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, fb)
+
+        self.ignore_spec.patterns.append(GitIgnorePattern('.glass'))
 
 
 
@@ -90,6 +114,9 @@ class Glass(object):
 @click.option('--debug/--no-debug', default=False)
 @click.pass_context
 def cli(ctx, debug):
+    if getattr(ctx, 'obj', None) is None:
+        ctx.obj = {}
+
     ctx.obj['DEBUG'] = debug
 
     ctx.obj['glass']  = Glass.load_config(ctx)
@@ -154,15 +181,31 @@ def new_site(ctx):
 
 @cli.command()
 @click.pass_context
-def get_file(ctx, remote_path):
-    click.echo('Getting File: {}'.format(remote_path))
+def get_file(ctx, remote_path, remote_context=None):
     glass = ctx.obj['glass']
+
+    if remote_context and remote_context.get('sha', None):
+        content_sha = hashlib.sha1()
+        try:
+            with open(remote_path, 'rb') as fb:
+                content_sha.update(fb.read())
+            if remote_context.get("sha", None) == content_sha.hexdigest():
+                click.echo('Skipping File: {} - contents match'.format(remote_path))
+                return
+        except IOError as exc:
+            click.echo(' * Error {}'.format(exc.message))
+
+    click.echo('Getting File: {}'.format(remote_path))
     resp = glass.get_site_resource(remote_path)
     mkdir_p(os.path.dirname(remote_path))
-    with open(remote_path, 'wb') as fb:
-        for chunk in resp.iter_content(chunk_size=1024):
-            if chunk: # filter out keep-alive new chunks
-                fb.write(chunk)
+
+    try:
+        with open(remote_path, 'wb') as fb:
+            for chunk in resp.iter_content(chunk_size=1024):
+                if chunk: # filter out keep-alive new chunks
+                    fb.write(chunk)
+    except IOError as exc:
+        click.echo(' * Error {}'.format(exc.message))
 
 
 @cli.command()
@@ -171,31 +214,46 @@ def get_all(ctx):
     glass = ctx.obj['glass']
 
     remote_files = glass.list_remote_staticfiles()
+    glass.load_ignore()
+    ignore_remote = set(glass.ignore_spec.match_files([f['path'] for f in remote_files]))
+
     for f in remote_files:
-        #if not os.path.exists(f["path"]):
-            ctx.invoke(get_file, f["path"])
-        #else:
-        #    #be clever?
+        if f['path'] in ignore_remote:
+            click.echo("Skipping {} - ignored.".format(f["path"]))
+            continue
+        ctx.invoke(get_file, f["path"], f)
 
 
 @cli.command()
 @click.pass_context
-def put_file(ctx, local_path):
-    remote_path = local_path[2:]
-    click.echo('Putting File: {}'.format(remote_path))
+def put_file(ctx, local_path, remote_file=None):
+    remote_path = local_path
     glass = ctx.obj['glass']
     resp = glass.get_site_resource(remote_path)
     mkdir_p(os.path.dirname(remote_path))
+
+    if remote_file:
+        content_sha = hashlib.sha1()
+        with open(local_path, 'rb') as fb:
+            content_sha.update(fb.read())
+        if remote_file.get("sha", None) == content_sha.hexdigest():
+            click.echo('Skipping File: {} - contents match'.format(remote_path))
+            return
+
+    click.echo('Putting File: {}'.format(remote_path))
     with open(local_path, 'rb') as fb:
         #import ipdb; ipdb.set_trace()
         resp = requests.post(
-            "{}sites/{}/files/upload".format(glass.glass_patrol_url, glass.site["id"]),
+            "{}sites/{}/files/upload".format(glass.glass_url, glass.site["id"]),
             files=[
                 ('file', (os.path.basename(remote_path), fb, mimetypes.guess_type(local_path)[0])),
             ], data={
                 "path": remote_path
             }, auth=(glass.email, glass.password))
-        assert resp.status_code == 200
+        try:
+            assert resp.status_code == 200
+        except AssertionError as exc:
+            import ipdb; ipdb.set_trace()
 
 
 @cli.command()
@@ -204,14 +262,18 @@ def put_all(ctx):
     glass = ctx.obj['glass']
 
     remote_files = glass.list_remote_staticfiles()
-    local_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk('.') for f in filenames]
+    glass.load_ignore()
+    local_files = set([os.path.join(dp[2:], f) for dp, dn, filenames in os.walk('.') for f in filenames if not dn])
 
-    for f in local_files:
-        #import ipdb; ipdb.set_trace()
-        #if os.path.exists(f["path"]):
-            ctx.invoke(put_file, f)
-        #else:
-        #    #be clever?
+    ignore_local_files = set(glass.ignore_spec.match_tree('.'))
+
+    for f in sorted(local_files - ignore_local_files):
+        rf = {}
+        for rf in remote_files:
+            if f == rf['path']:
+                break
+        ctx.invoke(put_file, f, rf)
+
 
 
 if __name__ == '__main__':
