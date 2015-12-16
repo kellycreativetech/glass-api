@@ -2,9 +2,13 @@
 
 import click
 import requests
-import os, os.path, json, mimetypes, fnmatch, hashlib
+import os, os.path, json, mimetypes, fnmatch, hashlib, time
 import pathspec
 from pathspec.gitignore import GitIgnorePattern
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+from watchdog.events import LoggingEventHandler
+
 
 def mkdir_p(path):
     if path and not os.path.exists(path):
@@ -273,6 +277,52 @@ def put_all(ctx):
             if f == rf['path']:
                 break
         ctx.invoke(put_file, f, rf)
+
+
+class FSEventHandler(FileSystemEventHandler):
+
+
+
+    def __init__(self, ctx, *args, **kwargs):
+        self.ctx = ctx
+        self.glass = ctx.obj['glass']
+        self.glass.load_ignore()
+
+        super(FSEventHandler, self).__init__(*args, **kwargs)
+
+    def on_created(self, evt):
+        self.upload(evt)
+
+    def on_modified(self, evt):
+        self.upload(evt)
+
+    def on_moved(self, evt):
+        self.upload(evt)
+
+    def upload(self, evt):
+        if not evt.is_directory:
+            ignore_remote = set(self.glass.ignore_spec.match_files([evt.src_path[2:]]))
+            if not ignore_remote:
+                self.ctx.invoke(put_file, evt.src_path[2:])
+
+
+@cli.command()
+@click.pass_context
+def watch(ctx):
+    glass = ctx.obj['glass']
+
+    path = '.'
+    observer = Observer()
+    event_handler = FSEventHandler(ctx)
+    observer.schedule(event_handler, path, recursive=True)
+    observer.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+
+    observer.join()
 
 
 
