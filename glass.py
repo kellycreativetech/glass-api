@@ -101,7 +101,8 @@ class Glass(object):
             try:
                 cfg_dict = json.load(fb)
             except ValueError:
-                click.UsageError("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
+                click.echo("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
+                exit (1)
 
         return cls(config_path=config_path, **cfg_dict)
 
@@ -110,6 +111,7 @@ class Glass(object):
             self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, fb)
 
         self.ignore_spec.patterns.append(GitIgnorePattern('.glass'))
+        self.ignore_spec.patterns.append(GitIgnorePattern('func.*'))
 
 
 
@@ -234,7 +236,6 @@ def put_file(ctx, local_path, remote_file=None):
     remote_path = local_path
     glass = ctx.obj['glass']
     resp = glass.get_site_resource(remote_path)
-    mkdir_p(os.path.dirname(remote_path))
 
     if remote_file:
         content_sha = hashlib.sha1()
@@ -280,8 +281,6 @@ def put_all(ctx):
 
 
 class FSEventHandler(FileSystemEventHandler):
-
-
 
     def __init__(self, ctx, *args, **kwargs):
         self.ctx = ctx
