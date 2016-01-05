@@ -32,13 +32,16 @@ class Glass(object):
         self.config_path = config_path
 
         if not glass_url:
-            self.glass_url = os.getenv('GLASS_PATROL_URL', 'http://localhost:8001/')
+            self.glass_url = os.getenv('GLASS_PATROL_URL', 'http://glass.servee.com/')
 
         if self.glass_url[-1] != '/':
             self.glass_url += '/'
 
-        if self.site.get('url') and (self.site['url'][-1] != '/'):
-            self.site['url'][-1] += '/'
+        if self.site.get("domain") and not self.site.get("url"):
+            self.site["url"] = "http://{}/".format(self.site["domain"])
+
+        if self.site and self.site.get('url') and (self.site['url'][-1] != '/'):
+            self.site['url'] += '/'
 
     def patrol_req(self, path, method="GET"):
         response = requests.request(
@@ -89,26 +92,30 @@ class Glass(object):
             click.confirm("Could not find a .glass config folder. Would you like to make one now?", abort=True)
             ctx.invoke(configure)
 
-        if not os.path.exists(os.path.join(config_path, ".glass", "config")):
-            click.confirm("The path `.glass` path exists, but there is no config file. Would you like to make one now?", abort=True)
-            ctx.invoke(configure)
+        else:
+            if not os.path.exists(os.path.join(config_path, ".glass", "config")):
+                click.confirm("The path `.glass` path exists, but there is no config file. Would you like to make one now?", abort=True)
+                ctx.invoke(configure)
 
-        if os.getcwd() is not config_path:
-            click.echo("Changing working directory to glass root at : {}".format(config_path))
-            os.chdir(config_path)
+            if os.getcwd() is not config_path:
+                click.echo("Changing working directory to glass root at : {}".format(config_path))
+                os.chdir(config_path)
 
-        with open(os.path.join(config_path, ".glass", "config"), 'r') as fb:
-            try:
-                cfg_dict = json.load(fb)
-            except ValueError:
-                click.echo("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
-                exit (1)
+            with open(os.path.join(config_path, ".glass", "config"), 'r') as fb:
+                try:
+                    cfg_dict = json.load(fb)
+                except ValueError:
+                    click.echo("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
+                    exit (1)
 
         return cls(config_path=config_path, **cfg_dict)
 
     def load_ignore(self):
-        with open(os.path.join(self.config_path, ".glass", "ignore"), 'r') as fb:
-            self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, fb)
+        try:
+            with open(os.path.join(self.config_path, ".glass", "ignore"), 'r') as fb:
+                self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, fb)
+        except IOError:
+            self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, "")
 
         self.ignore_spec.patterns.append(GitIgnorePattern('.glass'))
         self.ignore_spec.patterns.append(GitIgnorePattern('func.*'))
@@ -173,9 +180,7 @@ def configure(ctx):
     with open('.glass/config', 'wb') as f:
         f.write(json.dumps(config, indent=4))
 
-    ctx.obj['glass'] = Glass(
-        **config
-    )
+    exit (1)
 
 
 @cli.command()
@@ -199,7 +204,8 @@ def get_file(ctx, remote_path, remote_context=None):
                 click.echo('Skipping File: {} - contents match'.format(remote_path))
                 return
         except IOError as exc:
-            click.echo(' * Error {}'.format(exc.message))
+            pass
+            #    click.echo(' * Error {}'.format(exc.message))
 
     click.echo('Getting File: {}'.format(remote_path))
     resp = glass.get_site_resource(remote_path)

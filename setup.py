@@ -7,7 +7,7 @@ setup(
 
     # Project uses reStructuredText, so ensure that the docutils get
     # installed or upgraded on the target machine
-    install_requires = ['requests==2.8.1', 'click==6.2', 'pathspec==0.3.4', 'watchdog==0.8.3'],
+    #install_requires = ['requests==2.8.1', 'click==6.2', 'pathspec==0.3.4', 'watchdog==0.8.3'],
 
     package_data = {},
     entry_points={
