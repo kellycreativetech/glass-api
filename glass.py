@@ -118,6 +118,9 @@ class Glass(object):
             self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, "")
 
         self.ignore_spec.patterns.append(GitIgnorePattern('.glass'))
+        self.ignore_spec.patterns.append(GitIgnorePattern('.git'))
+        self.ignore_spec.patterns.append(GitIgnorePattern('.hg'))
+        self.ignore_spec.patterns.append(GitIgnorePattern('.svn'))
         self.ignore_spec.patterns.append(GitIgnorePattern('func.*'))
 
 
