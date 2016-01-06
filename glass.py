@@ -37,7 +37,7 @@ class Glass(object):
         if self.glass_url[-1] != '/':
             self.glass_url += '/'
 
-        if self.site.get("domain") and not self.site.get("url"):
+        if self.site and self.site.get("domain") and not self.site.get("url"):
             self.site["url"] = "http://{}/".format(self.site["domain"])
 
         if self.site and self.site.get('url') and (self.site['url'][-1] != '/'):
