@@ -1,16 +1,17 @@
 # glass-cli
 
-Assumes virtualenv wrapper...
+This package is the Command Line Interface for working with the Glass Web Management Platform. Once installed, you can run the ```glass watch``` command in your local project folder to upload files to the Glass system automatically on save. You can also run ```glass get_all``` to pull the current live files from the server, or ```glass put_all``` to download (and override) your local copy.
 
-Make the new site in Glass http://glass.servee.com/sites/new
 
-Make your virtualenvironment 
+These instructions assume basic knowlege of the Terminal, and VirtualEnv Wrapper needs to be installed on your machine. If these things don't sound familiar to you, [start with the instructions at the bottom](#start-with-the-basics), and then come back here.
+
+###1. Make your virtualenvironment
 
     $> mkvirtualenv glass-sites
     $> workon glass-sites
-    
-    
-Clone this repository.
+
+
+###2. Clone this repository.
 
     $> workon glass-sites
     $> cd ~/some/code/place
@@ -18,7 +19,7 @@ Clone this repository.
     $> cd glass-cli
     $> pip install -r requirements.txt
     $> pip install -e .
-    
+
 Go into, or make a directory for a new site
 
     $> cd ~/Projects/kct_clients/
@@ -40,11 +41,11 @@ Go into, or make a directory for a new site
    Writing config file to .glass/config
 
 
-Probably a good idea to make sure you're in sync...
+First, pull down all of the project files from the server. This will override anything that you have not yet uploaded, so you probably don't want to use this command more than once when you start the project.
 
     $> glass get_all
-    
-You may also want a glass ignore file...
+
+You may also want a glass ignore file. This works just like a [.gitignore file](https://help.github.com/articles/ignoring-files/).
 
 .git and .glass and func.* are ignored by default.
 
@@ -54,11 +55,30 @@ You may also want a glass ignore file...
     local_only_dir
     *.py
 
-Make some changes... and then deploy!
+Make some changes to the project files on your machine, and then deploy! This will publish your changes to the site.
 
     $> glass put_all
-    
-Or deploy as you're making changes cowgirl!
+
+Alternatively, you can deploy to the site as you are making changes. As soon as you save a file, it will be uploaded while this command is running.
 
     $> glass watch
-    
+
+
+
+
+###Start with the basics
+
+If this isn't your first experience with the Terminal and you already have [VituralEnv Wrapper](https://virtualenvwrapper.readthedocs.io/en/latest/install.html) installed, proceed to **Step 1** below. If not, and you're on a mac, follow these steps. Open the Terminal. (It's in Applications/Utilities. [Here's a quick introduction to the Terminal.](http://blog.teamtreehouse.com/introduction-to-the-mac-os-x-command-line)) paste these lines, one at a time, hitting enter between each. (This applies to the rest of the instructions below.)
+
+Install easy_install
+
+    $> curl https://bootstrap.pypa.io/ez_setup.py -o - | sudo python
+
+Install pip
+
+    $> sudo easy_install pip
+
+Install VirtualEnv Wrapper
+    $> pip install virtualenvwrapper
+
+Now that VirtualEnv Wrapper is installed, you're ready to install the Glass CLI tools.
