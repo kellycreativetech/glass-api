@@ -5,13 +5,13 @@ This package is the Command Line Interface for working with the Glass Web Manage
 
 These instructions assume basic knowlege of the Terminal, and VirtualEnv Wrapper needs to be installed on your machine. If these things don't sound familiar to you, [start with the instructions at the bottom](#start-with-the-basics), and then come back here.
 
-###1. Make your virtualenvironment
+### 1. Make your virtualenvironment
 
     $> mkvirtualenv glass-sites
     $> workon glass-sites
 
 
-###2. Clone this repository.
+### 2. Clone this repository.
 
     $> workon glass-sites
     $> cd ~/some/code/place
@@ -70,15 +70,16 @@ Alternatively, you can deploy to the site as you are making changes. As soon as 
 
 If this isn't your first experience with the Terminal and you already have [VituralEnv Wrapper](https://virtualenvwrapper.readthedocs.io/en/latest/install.html) installed, proceed to **Step 1** below. If not, and you're on a mac, follow these steps. Open the Terminal. (It's in Applications/Utilities. [Here's a quick introduction to the Terminal.](http://blog.teamtreehouse.com/introduction-to-the-mac-os-x-command-line)) paste these lines, one at a time, hitting enter between each. (This applies to the rest of the instructions below.)
 
-Install easy_install
+Install easy_install:
 
     $> curl https://bootstrap.pypa.io/ez_setup.py -o - | sudo python
 
-Install pip
+Install pip:
 
     $> sudo easy_install pip
 
-Install VirtualEnv Wrapper
+Install VirtualEnv Wrapper:
+
     $> pip install virtualenvwrapper
 
-Now that VirtualEnv Wrapper is installed, you're ready to install the Glass CLI tools.
+Now that VirtualEnv Wrapper is installed, you're ready to install the Glass CLI tools. [So go back to the top!](#glass-cli)
