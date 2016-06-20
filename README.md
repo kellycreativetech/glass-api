@@ -1,6 +1,6 @@
 # glass-cli
 
-This package is the Command Line Interface for working with the Glass Web Management Platform. Once installed, you can run the ```glass watch``` command in your local project folder to upload files to the Glass system automatically on save. You can also run ```glass get_all``` to pull the current live files from the server, or ```glass put_all``` to download (and override) your local copy.
+This package is the Command Line Interface for working with the Glass Web Management Platform. Once installed, you can run the ```glass watch``` command in your local project folder to upload files to the Glass system automatically on save. You can also run ```glass get_all``` to pull the current live files from the server, or ```glass put_all``` to upload (and override) the server copy with your local copy. (Put_all is a blunt instrument, so be careful.)
 
 
 These instructions assume basic knowlege of the Terminal, and VirtualEnv Wrapper needs to be installed on your machine. If these things don't sound familiar to you, [start with the instructions at the bottom](#start-with-the-basics), and then come back here.
