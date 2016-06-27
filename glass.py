@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+__title__ = 'glass-cli'
+__version__ = '0.9.0'
+__build__ = 0x000900
+__author__ = 'Servee LLC - Issac Kelly'
+__license__ = 'Apache 2.0'
+__copyright__ = 'Copyright 2016 Servee LLC'
 
 import click
 import requests
@@ -7,7 +13,22 @@ import pathspec
 from pathspec.gitignore import GitIgnorePattern
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import LoggingEventHandler
+from opbeat import Client
+from opbeat.handlers.logging import OpbeatHandler
+
+
+### Please do not abuse these credentials. Please change them if you copy this work.
+### For your own sake and mine...
+client = Client(
+    organization_id='80ea519a2fa64c9db8c6902d37f4c120',
+    app_id='ca7c90603a',
+    secret_token='9991f61aede8ddcfd1db4671085739312fa49852',
+)
+handler = OpbeatHandler(client)
+import logging
+
+logger = logging.getLogger()
+logger.addHandler(handler)
 
 
 def mkdir_p(path):
@@ -23,8 +44,6 @@ class Glass(object):
         self.password = password
         self.glass_url = glass_url
 
-
-
         self.site = site
         self.exclude = kwargs.pop('exclude', [])
         self.exclude.append('.glass')
@@ -32,13 +51,13 @@ class Glass(object):
         self.config_path = config_path
 
         if not glass_url:
-            self.glass_url = os.getenv('GLASS_PATROL_URL', 'http://glass.servee.com/')
+            self.glass_url = os.getenv('GLASS_PATROL_URL', 'https://glass.servee.com/')
 
         if self.glass_url[-1] != '/':
             self.glass_url += '/'
 
         if self.site and self.site.get("domain") and not self.site.get("url"):
-            self.site["url"] = "http://{}/".format(self.site["domain"])
+            self.site["url"] = "http://{}.temp.servee.com".format(self.site["domain"])
 
         if self.site and self.site.get('url') and (self.site['url'][-1] != '/'):
             self.site['url'] += '/'
@@ -51,13 +70,17 @@ class Glass(object):
         )
         try:
             return response.json()
-        except Exception as exc:
+        except Exception:
             import ipdb; ipdb.set_trace()
+            logger.error('Error returning json response', exc_info=True)
 
-    def site_req(self, path, method="GET"):
+
+    def site_req(self, path, method="GET", auth=True):
         response = requests.request(
             method,
             "{}{}".format(self.site["url"], path),
+            auth=(self.email, self.password) if auth else None,
+
         )
         return response.json()
 
@@ -102,11 +125,17 @@ class Glass(object):
                 os.chdir(config_path)
 
             with open(os.path.join(config_path, ".glass", "config"), 'r') as fb:
+                buffer = fb.read()
                 try:
-                    cfg_dict = json.load(fb)
+                    cfg_dict = json.loads(buffer)
                 except ValueError:
+                    logger.error('Error parsing json file', exc_info=True)
                     click.echo("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
-                    exit (1)
+                    click.confirm("Would you like to send your config to jsonlint now?", abort=True)
+                    import webbrowser
+                    from urllib.parse import quote
+                    webbrowser.open('http://jsonlint.com?json={}'.format(quote(buffer)), new=2, autoraise=True)
+                    exit(1)
 
         return cls(config_path=config_path, **cfg_dict)
 
@@ -119,8 +148,10 @@ class Glass(object):
 
         self.ignore_spec.patterns.append(GitIgnorePattern('.glass'))
         self.ignore_spec.patterns.append(GitIgnorePattern('.git'))
+        self.ignore_spec.patterns.append(GitIgnorePattern('.DS_Store'))
         self.ignore_spec.patterns.append(GitIgnorePattern('.hg'))
         self.ignore_spec.patterns.append(GitIgnorePattern('.svn'))
+        self.ignore_spec.patterns.append(GitIgnorePattern('.idea'))
         self.ignore_spec.patterns.append(GitIgnorePattern('func.*'))
 
 
@@ -135,15 +166,24 @@ def cli(ctx, debug):
 
     ctx.obj['DEBUG'] = debug
 
-    ctx.obj['glass']  = Glass.load_config(ctx)
+    ctx.obj['glass'] = Glass.load_config(ctx)
 
     if ctx.invoked_subcommand is None:
         click.echo('Glass CMS command line tool. Possible commands are:')
         click.echo('')
         click.echo('    config')
         click.echo('    sync')
+        click.echo('    watch')
+        click.echo('    put_all')
+        click.echo('')
 
     click.echo('Debug mode is %s' % ('on' if debug else 'off'))
+    if debug:
+        from spectrum.handlers import Spectrum
+        logger.setLevel(logging.DEBUG)
+        spectrum = Spectrum('glass-cli')
+        logger.addHandler(spectrum)
+
 
 
 @cli.command()
@@ -180,10 +220,10 @@ def configure(ctx):
 
     click.echo('Writing config file to .glass/config')
     mkdir_p('.glass')
-    with open('.glass/config', 'wb') as f:
+    with open('.glass/config', 'w') as f:
         f.write(json.dumps(config, indent=4))
 
-    exit (1)
+    exit(1)
 
 
 @cli.command()
@@ -206,8 +246,8 @@ def get_file(ctx, remote_path, remote_context=None):
             if remote_context.get("sha", None) == content_sha.hexdigest():
                 click.echo('Skipping File: {} - contents match'.format(remote_path))
                 return
-        except IOError as exc:
-            pass
+        except IOError:
+            logger.error('IO Error in getting file, with sha', exc_info=True)
             #    click.echo(' * Error {}'.format(exc.message))
 
     click.echo('Getting File: {}'.format(remote_path))
@@ -220,7 +260,7 @@ def get_file(ctx, remote_path, remote_context=None):
                 if chunk: # filter out keep-alive new chunks
                     fb.write(chunk)
     except IOError as exc:
-        click.echo(' * Error {}'.format(exc.message))
+        logger.error('IO Error in getting file', exc_info=True)
 
 
 @cli.command()
@@ -244,19 +284,18 @@ def get_all(ctx):
 def put_file(ctx, local_path, remote_file=None):
     remote_path = local_path
     glass = ctx.obj['glass']
-    resp = glass.get_site_resource(remote_path)
+    #resp = glass.get_site_resource(remote_path)
 
-    if remote_file:
-        content_sha = hashlib.sha1()
-        with open(local_path, 'rb') as fb:
-            content_sha.update(fb.read())
-        if remote_file.get("sha", None) == content_sha.hexdigest():
-            click.echo('Skipping File: {} - contents match'.format(remote_path))
-            return
+    #if remote_file:
+    #    content_sha = hashlib.sha1()
+    #    with open(local_path, 'rb') as fb:
+    #        content_sha.update(fb.read())
+    #    if remote_file.get("sha", None) == content_sha.hexdigest():
+    #        click.echo('Skipping File: {} - contents match'.format(remote_path))
+    #        return
 
     click.echo('Putting File: {}'.format(remote_path))
     with open(local_path, 'rb') as fb:
-        #import ipdb; ipdb.set_trace()
         resp = requests.post(
             "{}sites/{}/files/upload".format(glass.glass_url, glass.site["id"]),
             files=[
@@ -267,7 +306,7 @@ def put_file(ctx, local_path, remote_file=None):
         try:
             assert resp.status_code == 200
         except AssertionError as exc:
-            import ipdb; ipdb.set_trace()
+            logger.error('Response Code Error in putting file', exc_info=True)
 
 
 @cli.command()
@@ -316,6 +355,23 @@ class FSEventHandler(FileSystemEventHandler):
 
 @cli.command()
 @click.pass_context
+def audit(ctx):
+    glass = ctx.obj['glass']
+    pages = glass.site_req('siteapi/pages.json')
+
+    import datetime
+    import webbrowser
+    click.echo('starting audit: {}'.format( datetime.datetime.now().isoformat()))
+    for p in pages:
+        url = '/' + p['path']
+        resp = requests.get("{}{}".format(glass.site['url'], url))
+        click.echo("[{}] {} - {}".format(datetime.datetime.now().isoformat(), resp.status_code, url))
+        webbrowser.open("{}{}?convert_chunks=true".format(glass.site['url'], url))
+
+    click.echo('finished audit: {}'.format( datetime.datetime.now().isoformat()))
+
+@cli.command()
+@click.pass_context
 def watch(ctx):
     glass = ctx.obj['glass']
 
@@ -332,6 +388,72 @@ def watch(ctx):
 
     observer.join()
 
+
+
+#### Handlers
+from django.shortcuts import render
+from django.template.loader import get_template
+from django.contrib.staticfiles.views import serve
+from django.conf.urls import url
+
+
+def view(request, path):
+    from django.conf import settings
+    if get_template(path):
+        return render(request, path, {})
+    return serve(os.path.join(settings.BASE_DIR, path))
+
+urlpatterns = [
+    url(r'^(.*)', view),
+]
+
+@cli.command()
+@click.pass_context
+def serve(ctx):
+    glass = ctx.obj['glass']
+
+    from django.conf import settings
+    if not settings.configured:
+        settings.configure(
+            DEBUG = True,
+            ROOT_URLCONF = 'glass',
+            INSTALLED_APPS = [],
+            BASE_DIR = glass.config_path,
+            TEMPLATES = [
+                {
+                    'BACKEND': 'django.template.backends.django.DjangoTemplates',
+                    'DIRS': [
+                        os.path.join(glass.config_path),
+                    ],
+                    'APP_DIRS': True,
+                    'OPTIONS': {
+                        'context_processors': [
+                            # Insert your TEMPLATE_CONTEXT_PROCESSORS here or use this
+                            # list if you haven't customized them:
+                            'django.template.context_processors.debug',
+                            'django.template.context_processors.i18n',
+                            'django.contrib.messages.context_processors.messages',
+                        ],
+                    },
+                },
+            ],
+        )
+    from django import setup
+    setup()
+
+    from django.template.engine import Engine
+    engine = Engine.get_default()
+
+    engine.builtins = engine.builtins + [
+        'django.templatetags.i18n',
+        'django.templatetags.l10n',
+        'django.contrib.humanize.templatetags.humanize',
+        'local_tags',
+    ]
+    engine.template_builtins = engine.get_template_builtins(engine.builtins)
+
+    from django.core.management import execute_from_command_line
+    execute_from_command_line(["glass.py", "runserver", "8999"])
 
 
 if __name__ == '__main__':

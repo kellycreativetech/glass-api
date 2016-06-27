@@ -1,4 +1,11 @@
-# glass-cli
+============================================
+Glass Website Management Command Line Client
+============================================
+
+Glass is a website management platform made by Kelly Creative Tech. 
+
+Setting up a new site
+---------------------
 
 This package is the Command Line Interface for working with the Glass Web Management Platform. Once installed, you can run the ```glass watch``` command in your local project folder to upload files to the Glass system automatically on save. You can also run ```glass get_all``` to pull the current live files from the server, or ```glass put_all``` to upload (and override) the server copy with your local copy. (Put_all is a blunt instrument, so be careful.)
 
@@ -7,7 +14,7 @@ These instructions assume basic knowlege of the Terminal, and VirtualEnv Wrapper
 
 ### 1. Make your virtualenvironment
 
-    $> mkvirtualenv glass-sites
+    $> mkvirtualenv glass-sites -p python3
     $> workon glass-sites
 
 
