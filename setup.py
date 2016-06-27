@@ -1,10 +1,13 @@
 from setuptools import setup, find_packages
 import re
 
-with open('README.rst', 'r', 'utf-8') as f:
-    readme = f.read()
-with open('HISTORY.rst', 'r', 'utf-8') as f:
-    history = f.read()
+#with open('README.rst', 'r', 'utf-8') as f:
+#    readme = f.read()
+#with open('HISTORY.rst', 'r', 'utf-8') as f:
+#    history = f.read()
+
+readme = ''
+history = ''
 
 with open('glass.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
