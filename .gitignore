@@ -1,2 +1,6 @@
 *.pyc
 glass.egg-info
+/dist
+/env
+/glass_cli.egg-info
+/build/scripts-3.5

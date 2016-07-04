@@ -49,7 +49,7 @@ setup(
         'pathspec==0.3.4',
         'watchdog==0.8.3',
         'Django==1.9.7',
-        'opbeat==3.3.2',
+        'opbeat==3.3.4',
     ],
     long_description=readme + '\n\n' + history,
 )

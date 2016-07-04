@@ -8,7 +8,7 @@ __copyright__ = 'Copyright 2016 Servee LLC'
 
 import click
 import requests
-import os, os.path, json, mimetypes, fnmatch, hashlib, time
+import os, os.path, json, mimetypes, fnmatch, hashlib, time, re
 import pathspec
 from pathspec.gitignore import GitIgnorePattern
 from watchdog.events import FileSystemEventHandler
@@ -71,9 +71,7 @@ class Glass(object):
         try:
             return response.json()
         except Exception:
-            import ipdb; ipdb.set_trace()
             logger.error('Error returning json response', exc_info=True)
-
 
     def site_req(self, path, method="GET", auth=True):
         response = requests.request(
@@ -88,7 +86,7 @@ class Glass(object):
         return self.patrol_req('sites.json')
 
     def list_remote_staticfiles(self):
-        return self.patrol_req('sites/{}/files.json'.format(self.site['id']))
+        return self.patrol_req('sites/{}/files.json'.format(self.site['domain']))
 
     def get_site_resource(self, path):
         return requests.get(
@@ -102,7 +100,12 @@ class Glass(object):
                 return path
 
             dir = os.path.dirname(path)
+            print(dir)
             if dir == '/':
+                return None
+            
+            # Windows
+            if re.match(r'[A-Z]:\\', dir):
                 return None
 
             return _config_path(dir)
@@ -282,7 +285,7 @@ def get_all(ctx):
 @cli.command()
 @click.pass_context
 def put_file(ctx, local_path, remote_file=None):
-    remote_path = local_path
+    remote_path = local_path.replace("\\", '/')
     glass = ctx.obj['glass']
     #resp = glass.get_site_resource(remote_path)
 
@@ -297,7 +300,7 @@ def put_file(ctx, local_path, remote_file=None):
     click.echo('Putting File: {}'.format(remote_path))
     with open(local_path, 'rb') as fb:
         resp = requests.post(
-            "{}sites/{}/files/upload".format(glass.glass_url, glass.site["id"]),
+            "{}sites/{}/files/upload".format(glass.glass_url, glass.site["domain"]),
             files=[
                 ('file', (os.path.basename(remote_path), fb, mimetypes.guess_type(local_path)[0])),
             ], data={
