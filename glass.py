@@ -62,6 +62,10 @@ class Glass(object):
         if self.site and self.site.get('url') and (self.site['url'][-1] != '/'):
             self.site['url'] += '/'
 
+        if self.site and self.site.get('domain'):
+            self.site['domain'].replace('temp.servee.com', '')
+            self.site['domain'].replace('lvh.me:8000', '')
+
     def patrol_req(self, path, method="GET"):
         response = requests.request(
             method,
