@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 __title__ = 'glass-cli'
-__version__ = '0.9.0'
-__build__ = 0x000900
+__version__ = '0.9.1'
+__build__ = 0x000901
 __author__ = 'Servee LLC - Issac Kelly'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2016 Servee LLC'
@@ -18,7 +18,7 @@ from opbeat.handlers.logging import OpbeatHandler
 
 
 ### Please do not abuse these credentials. Please change them if you copy this work.
-### For your own sake and mine...
+### For your own sake and mine. This is here so I can find and help with CLI errors. --Issac
 client = Client(
     organization_id='80ea519a2fa64c9db8c6902d37f4c120',
     app_id='ca7c90603a',
@@ -35,16 +35,25 @@ def mkdir_p(path):
     if path and not os.path.exists(path):
         os.makedirs(path)
 
+
 class Glass(object):
 
     spec = None
 
-    def __init__(self, email, password, glass_url=None, site=None, config_path=None, **kwargs):
+    def __init__(self, email, password, domain=None, glass_url=None, config_path=None, **kwargs):
         self.email = email
         self.password = password
         self.glass_url = glass_url
 
-        self.site = site
+        self.domain = domain
+        self.site = {
+            "domain": domain,
+        }
+
+        site = kwargs.pop('site', None)
+        if site and site['domain'] and not self.domain:
+            self.domain = site['domain']
+
         self.exclude = kwargs.pop('exclude', [])
         self.exclude.append('.glass')
 
@@ -62,43 +71,140 @@ class Glass(object):
         if self.site and self.site.get('url') and (self.site['url'][-1] != '/'):
             self.site['url'] += '/'
 
-        if self.site and self.site.get('domain'):
-            self.site['domain'].replace('temp.servee.com', '')
-            self.site['domain'].replace('lvh.me:8000', '')
+    def __setattr__(self, key, val):
+        if getattr(self, 'domain', None):
+            old_domain = self.domain
+        super(Glass, self).__setattr__(key, val)
+        if key == 'domain' and getattr(self, 'site', None):
+            self.site["url"] = self.site["url"].replace(old_domain, val)
 
-    def patrol_req(self, path, method="GET"):
+    def patrol_req(self, path, method="GET", **kwargs):
         response = requests.request(
             method,
             "{}{}".format(self.glass_url, path),
             auth=(self.email, self.password),
+            **kwargs
         )
         try:
             return response.json()
-        except Exception:
+        except:
             logger.error('Error returning json response', exc_info=True)
 
-    def site_req(self, path, method="GET", auth=True):
+    def site_req(self, path, method="GET", auth=True, **kwargs):
         response = requests.request(
             method,
             "{}{}".format(self.site["url"], path),
             auth=(self.email, self.password) if auth else None,
-
+            **kwargs
         )
+        assert response.status_code in [200, 201]
         return response.json()
 
     def list_sites(self):
         return self.patrol_req('sites.json')
 
-    def list_remote_staticfiles(self):
-        return self.patrol_req('sites/{}/files.json'.format(self.site['domain']))
+    def get_settings(self):
+        return self.site_req('siteapi/settings.json')
+
+    def put_settings(self, settings):
+        return self.site_req('siteapi/settings.json', 'post', settings)
+
+    def list_files(self):
+        return self.site_req('siteapi/files.json')
+
+    def put_file(self, path, buffer, content_type="text/plain"):
+        resp = requests.post(
+            "{}siteapi/upload".format(self.site['url']),
+            files=[
+                ('file', (os.path.basename(path), buffer, content_type)),
+            ], data={
+                "path": path
+            }, auth=(self.email, self.password))
+
+        try:
+            assert resp.status_code == 200
+        except AssertionError:
+            logger.error('Response Code Error in putting file', exc_info=True)
+            return False
+        return True
+
+    def get_file(self, path):
+        return requests.get(
+            "{}{}".format(self.site["url"], path),
+        ).content
 
     def get_site_resource(self, path):
         return requests.get(
             "{}{}".format(self.site["url"], path),
         )
 
+    def list_pages(self):
+        return self.site_req('siteapi/pages.json')
+
+    def new_page(self,
+                 url,
+                 title="", # Shorthand for adding a title. On the backend this is saved as content['title'] on the page.
+                 template="", # Path to template e.g "templates/base.html"
+                 content=None, # dict that can be safely json encoded, or JSON encoded string.
+                 parent=None, # parent path (without leading /), if applicable, e.g "blog/"
+                 published=None, # date or datetime, defaults to NOW on the server
+                 created=None, # date or datetime, defaults to NOW on the server
+                 redirect=None, # If filled, `url` will redirect to `redirect` for all requests.
+                 author=None, # email address of existing site user, defaults to None
+                 ):
+        page_data = {
+            "url": url,
+            "title": title,
+            "template": template,
+            "redirect": redirect,
+            "parent": parent,
+            "author": author,
+        }
+        if content is None:
+            content = {}
+        if isinstance(content, str):
+            page_data['content'] = content
+        else:
+            page_data['content'] = json.dumps(content)
+
+        if created:
+            page_data['created'] = created.isoformat(),
+        if published:
+            page_data['published'] = published.isoformat()
+
+        return self.site_req('siteapi/new_page', "POST", data=page_data)
+
+    def get_page(self, path):
+        return self.site_req(path)
+
+    def put_page(self, path, data):
+        return self.site_req(path, "POST", data=data)
+
+    def query_data(self, **kwargs):
+        """
+        Valid kwargs:
+            category
+            bucket
+            record
+            order_by - created, modified, category, bucket, record (or add - to any of those to go in reverse) and ? for random
+        """
+        return self.site_req('siteapi/data/query', "get", params=kwargs)
+
+    def get_data(self, id):
+        return self.site_req('siteapi/data/{}.json'.format(id))
+
+    def put_data(self, id, data):
+        return self.site_req('siteapi/data/{}.json'.format(id), 'post', data=data)
+
+    def create_data(self, id, data):
+        return self.site_req('siteapi/data/new.json'.format(id), 'post', data=data)
+
+
     @classmethod
     def load_config(cls, ctx, path=None):
+        """
+        Loads a config from a file, returns an instance of `Glass` from config file.
+        """
         def _config_path(path):
             if os.path.exists(os.path.join(path, '.glass')):
                 return path
@@ -147,6 +253,10 @@ class Glass(object):
         return cls(config_path=config_path, **cfg_dict)
 
     def load_ignore(self):
+        """
+        For local development, loads .glass/ignore (same format as gitignore) to exclude files
+        from watch and put operations.
+        """
         try:
             with open(os.path.join(self.config_path, ".glass", "ignore"), 'r') as fb:
                 self.ignore_spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, fb)
@@ -185,11 +295,6 @@ def cli(ctx, debug):
         click.echo('')
 
     click.echo('Debug mode is %s' % ('on' if debug else 'off'))
-    if debug:
-        from spectrum.handlers import Spectrum
-        logger.setLevel(logging.DEBUG)
-        spectrum = Spectrum('glass-cli')
-        logger.addHandler(spectrum)
 
 
 
@@ -255,7 +360,6 @@ def get_file(ctx, remote_path, remote_context=None):
                 return
         except IOError:
             logger.error('IO Error in getting file, with sha', exc_info=True)
-            #    click.echo(' * Error {}'.format(exc.message))
 
     click.echo('Getting File: {}'.format(remote_path))
     resp = glass.get_site_resource(remote_path)
@@ -266,7 +370,7 @@ def get_file(ctx, remote_path, remote_context=None):
             for chunk in resp.iter_content(chunk_size=1024):
                 if chunk: # filter out keep-alive new chunks
                     fb.write(chunk)
-    except IOError as exc:
+    except IOError:
         logger.error('IO Error in getting file', exc_info=True)
 
 
@@ -275,7 +379,7 @@ def get_file(ctx, remote_path, remote_context=None):
 def get_all(ctx):
     glass = ctx.obj['glass']
 
-    remote_files = glass.list_remote_staticfiles()
+    remote_files = glass.list_files()
     glass.load_ignore()
     ignore_remote = set(glass.ignore_spec.match_files([f['path'] for f in remote_files]))
 
@@ -288,32 +392,13 @@ def get_all(ctx):
 
 @cli.command()
 @click.pass_context
-def put_file(ctx, local_path, remote_file=None):
+def put_file(ctx, local_path):
     remote_path = local_path.replace("\\", '/')
     glass = ctx.obj['glass']
-    #resp = glass.get_site_resource(remote_path)
-
-    #if remote_file:
-    #    content_sha = hashlib.sha1()
-    #    with open(local_path, 'rb') as fb:
-    #        content_sha.update(fb.read())
-    #    if remote_file.get("sha", None) == content_sha.hexdigest():
-    #        click.echo('Skipping File: {} - contents match'.format(remote_path))
-    #        return
-
     click.echo('Putting File: {}'.format(remote_path))
     with open(local_path, 'rb') as fb:
-        resp = requests.post(
-            "{}sites/{}/files/upload".format(glass.glass_url, glass.site["domain"]),
-            files=[
-                ('file', (os.path.basename(remote_path), fb, mimetypes.guess_type(local_path)[0])),
-            ], data={
-                "path": remote_path
-            }, auth=(glass.email, glass.password))
-        try:
-            assert resp.status_code == 200
-        except AssertionError as exc:
-            logger.error('Response Code Error in putting file', exc_info=True)
+        glass.put_file(remote_path, fb, mimetypes.guess_type(local_path)[0])
+
 
 
 @cli.command()
@@ -362,26 +447,7 @@ class FSEventHandler(FileSystemEventHandler):
 
 @cli.command()
 @click.pass_context
-def audit(ctx):
-    glass = ctx.obj['glass']
-    pages = glass.site_req('siteapi/pages.json')
-
-    import datetime
-    import webbrowser
-    click.echo('starting audit: {}'.format( datetime.datetime.now().isoformat()))
-    for p in pages:
-        url = '/' + p['path']
-        resp = requests.get("{}{}".format(glass.site['url'], url))
-        click.echo("[{}] {} - {}".format(datetime.datetime.now().isoformat(), resp.status_code, url))
-        webbrowser.open("{}{}?convert_chunks=true".format(glass.site['url'], url))
-
-    click.echo('finished audit: {}'.format( datetime.datetime.now().isoformat()))
-
-@cli.command()
-@click.pass_context
 def watch(ctx):
-    glass = ctx.obj['glass']
-
     path = '.'
     observer = Observer()
     event_handler = FSEventHandler(ctx)
@@ -394,73 +460,6 @@ def watch(ctx):
         observer.stop()
 
     observer.join()
-
-
-
-#### Handlers
-from django.shortcuts import render
-from django.template.loader import get_template
-from django.contrib.staticfiles.views import serve
-from django.conf.urls import url
-
-
-def view(request, path):
-    from django.conf import settings
-    if get_template(path):
-        return render(request, path, {})
-    return serve(os.path.join(settings.BASE_DIR, path))
-
-urlpatterns = [
-    url(r'^(.*)', view),
-]
-
-@cli.command()
-@click.pass_context
-def serve(ctx):
-    glass = ctx.obj['glass']
-
-    from django.conf import settings
-    if not settings.configured:
-        settings.configure(
-            DEBUG = True,
-            ROOT_URLCONF = 'glass',
-            INSTALLED_APPS = [],
-            BASE_DIR = glass.config_path,
-            TEMPLATES = [
-                {
-                    'BACKEND': 'django.template.backends.django.DjangoTemplates',
-                    'DIRS': [
-                        os.path.join(glass.config_path),
-                    ],
-                    'APP_DIRS': True,
-                    'OPTIONS': {
-                        'context_processors': [
-                            # Insert your TEMPLATE_CONTEXT_PROCESSORS here or use this
-                            # list if you haven't customized them:
-                            'django.template.context_processors.debug',
-                            'django.template.context_processors.i18n',
-                            'django.contrib.messages.context_processors.messages',
-                        ],
-                    },
-                },
-            ],
-        )
-    from django import setup
-    setup()
-
-    from django.template.engine import Engine
-    engine = Engine.get_default()
-
-    engine.builtins = engine.builtins + [
-        'django.templatetags.i18n',
-        'django.templatetags.l10n',
-        'django.contrib.humanize.templatetags.humanize',
-        'local_tags',
-    ]
-    engine.template_builtins = engine.get_template_builtins(engine.builtins)
-
-    from django.core.management import execute_from_command_line
-    execute_from_command_line(["glass.py", "runserver", "8999"])
 
 
 if __name__ == '__main__':

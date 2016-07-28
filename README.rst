@@ -7,12 +7,12 @@ Glass is a website management platform made by Kelly Creative Tech.
 Setting up a new site
 ---------------------
 
-This package is the Command Line Interface for working with the Glass Web Management Platform. Once installed, you can run the ```glass watch``` command in your local project folder to upload files to the Glass system automatically on save. You can also run ```glass get_all``` to pull the current live files from the server, or ```glass put_all``` to upload (and override) the server copy with your local copy. (Put_all is a blunt instrument, so be careful.)
+This package is the Command Line Interface for working with the `Glass Web Management Platform <https://glass.servee.com>`_. Once installed, you can run the ```glass watch``` command in your local project folder to upload files to the Glass system automatically on save. You can also run ```glass get_all``` to pull the current live files from the server, or ```glass put_all``` to upload (and override) the server copy with your local copy. (Put_all is a blunt instrument, so be careful.)
 
 
 These instructions assume basic knowlege of the Terminal, and VirtualEnv Wrapper needs to be installed on your machine. If these things don't sound familiar to you, [start with the instructions at the bottom](#start-with-the-basics), and then come back here.
 
-### 1. Make your virtualenvironment
+### 1. Make your virtualenvironment. We're using virtualenvwrapper.
 
     $> mkvirtualenv glass-sites -p python3
     $> workon glass-sites
@@ -40,10 +40,10 @@ Go into, or make a directory for a new site
     ---
     Finding sites for you
        1. Issac Kelly
-       2. kalicocourt
+       2. ~~~~~~
        3. Kelly Creative Tech
-       4. paulconstruction
-       5. one.localhost:8000
+       4. ~!~~~~~
+       5. !~~~~
    Which which site would you like to configure in this directory?: 1
    Writing config file to .glass/config
 

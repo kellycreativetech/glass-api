@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 import re
 
-#with open('README.rst', 'r', 'utf-8') as f:
-#    readme = f.read()
-#with open('HISTORY.rst', 'r', 'utf-8') as f:
-#    history = f.read()
-
 readme = ''
 history = ''
+
+with open('README.rst', 'r') as f:
+    readme = f.read()
+with open('HISTORY.rst', 'r') as f:
+    history = f.read()
 
 with open('glass.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
@@ -17,7 +17,7 @@ if not version:
     raise RuntimeError('Cannot find version information')
 
 setup(
-    name="glass-cli",
+    name="glass-api",
     version=version,
     packages=find_packages(),
     scripts=['glass.py'],
@@ -42,13 +42,14 @@ setup(
     license='Apache 2.0',
     author="Servee LLC - Issac Kelly",
     author_email="issac@servee.com",
+    url="https://glass.servee.com/static/docs/",
+    keywords='glass CMS',
     description="Glass CLI",
-    install_requres=[
+    install_requires=[
         'click==6.6',
         'requests==2.10.0',
         'pathspec==0.3.4',
         'watchdog==0.8.3',
-        'Django==1.9.7',
         'opbeat==3.3.4',
     ],
     long_description=readme + '\n\n' + history,
