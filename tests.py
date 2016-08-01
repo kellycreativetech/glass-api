@@ -128,7 +128,7 @@ if __name__ == '__main__':
             environ['SLACK_URL'],
             data=json.dumps({
                 "username": "Python API Tests",
-                "icon_emoji": ":snake:",
+                "icon_emoji": ":snake:" if success else ":no_entry:",
                 "channel": "glass-tests",
                 "text": """{out}
                     """.format(
