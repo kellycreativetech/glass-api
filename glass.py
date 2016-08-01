@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 __title__ = 'glass-cli'
-__version__ = '0.9.2a1'
-__build__ = 0x000901
+__version__ = '0.9.2a2'
+__build__ = 0x000902
 __author__ = 'Servee LLC - Issac Kelly'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2016 Servee LLC'
@@ -26,6 +26,7 @@ client = Client(
 )
 handler = OpbeatHandler(client)
 import logging
+from json.decoder import JSONDecodeError
 
 logger = logging.getLogger()
 logger.addHandler(handler)
@@ -89,7 +90,7 @@ class Glass(object):
         )
         try:
             return response.json()
-        except:
+        except JSONDecodeError:
             logger.error('Error returning json response', exc_info=True)
 
     def site_req(self, path, method="GET", auth=True, **kwargs):
@@ -102,8 +103,12 @@ class Glass(object):
         try:
             assert response.status_code in [200, 201]
         except AssertionError:
-            import ipdb; ipdb.set_trace()
-        return response.json()
+            logger.error('Non 200 response', exc_info=True)
+
+        try:
+            return response.json()
+        except JSONDecodeError:
+            logger.error('Error returning json response', exc_info=True)
 
     def list_sites(self):
         return self.patrol_req('sites.json')
@@ -112,7 +117,7 @@ class Glass(object):
         return self.site_req('siteapi/settings.json')
 
     def put_settings(self, settings):
-        return self.site_req('siteapi/settings.json', 'post', settings)
+        return self.site_req('siteapi/settings.json', 'post', json=settings)
 
     def list_files(self):
         return self.site_req('siteapi/files.json')
@@ -204,10 +209,10 @@ class Glass(object):
         return self.site_req('siteapi/data/{}.json'.format(id))
 
     def put_data(self, id, data):
-        return self.site_req('siteapi/data/{}.json'.format(id), 'post', data=data)
+        return self.site_req('siteapi/data/{}.json'.format(id), 'post', json=data)
 
     def create_data(self, id, data):
-        return self.site_req('siteapi/data/new.json'.format(id), 'post', data=data)
+        return self.site_req('siteapi/data/new.json'.format(id), 'post', json=data)
 
 
     @classmethod
