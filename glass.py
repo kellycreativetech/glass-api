@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 __title__ = 'glass-cli'
-__version__ = '0.9.1'
+__version__ = '0.9.2a1'
 __build__ = 0x000901
 __author__ = 'Servee LLC - Issac Kelly'
 __license__ = 'Apache 2.0'
@@ -48,11 +48,13 @@ class Glass(object):
         self.domain = domain
         self.site = {
             "domain": domain,
+            "url": "http://{}.temp.servee.com".format(self.domain)
         }
 
         site = kwargs.pop('site', None)
         if site and site['domain'] and not self.domain:
             self.domain = site['domain']
+            self.site['url'] = "http://{}.temp.servee.com".format(self.domain)
 
         self.exclude = kwargs.pop('exclude', [])
         self.exclude.append('.glass')
@@ -75,7 +77,7 @@ class Glass(object):
         if getattr(self, 'domain', None):
             old_domain = self.domain
         super(Glass, self).__setattr__(key, val)
-        if key == 'domain' and getattr(self, 'site', None):
+        if key == 'domain' and getattr(self, 'site', None) and self.site.get('url', ''):
             self.site["url"] = self.site["url"].replace(old_domain, val)
 
     def patrol_req(self, path, method="GET", **kwargs):
@@ -97,7 +99,10 @@ class Glass(object):
             auth=(self.email, self.password) if auth else None,
             **kwargs
         )
-        assert response.status_code in [200, 201]
+        try:
+            assert response.status_code in [200, 201]
+        except AssertionError:
+            import ipdb; ipdb.set_trace()
         return response.json()
 
     def list_sites(self):
@@ -113,12 +118,17 @@ class Glass(object):
         return self.site_req('siteapi/files.json')
 
     def put_file(self, path, buffer, content_type="text/plain"):
+        new_path = os.path.dirname(path)
+        new_file = os.path.basename(path)
+        if len(new_path) and new_path[0] == '/':
+            new_path = new_path[1:]
+
         resp = requests.post(
             "{}siteapi/upload".format(self.site['url']),
             files=[
-                ('file', (os.path.basename(path), buffer, content_type)),
+                ('file', (new_file, buffer, content_type)),
             ], data={
-                "path": path
+                "path": new_path
             }, auth=(self.email, self.password))
 
         try:
@@ -126,7 +136,7 @@ class Glass(object):
         except AssertionError:
             logger.error('Response Code Error in putting file', exc_info=True)
             return False
-        return True
+        return resp.json()[0]
 
     def get_file(self, path):
         return requests.get(
@@ -175,10 +185,10 @@ class Glass(object):
         return self.site_req('siteapi/new_page', "POST", data=page_data)
 
     def get_page(self, path):
-        return self.site_req(path)
+        return self.site_req(path + '.json')
 
     def put_page(self, path, data):
-        return self.site_req(path, "POST", data=data)
+        return self.site_req(path + '.json', "POST", json=data)
 
     def query_data(self, **kwargs):
         """
@@ -406,7 +416,7 @@ def put_file(ctx, local_path):
 def put_all(ctx):
     glass = ctx.obj['glass']
 
-    remote_files = glass.list_remote_staticfiles()
+    remote_files = glass.list_files()
     glass.load_ignore()
     local_files = set([os.path.join(dp[2:], f) for dp, dn, filenames in os.walk('.') for f in filenames if not dn])
 
