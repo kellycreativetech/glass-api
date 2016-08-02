@@ -1,5 +1,5 @@
 import click
-import os, os.path, json, mimetypes, hashlib, time
+import os, os.path, json, mimetypes, hashlib, time, re
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from .client import Glass
@@ -14,11 +14,65 @@ logger = logging.getLogger()
 
 
 def mkdir_p(path):
+    #print("making dir ", path)
     if path and not os.path.exists(path):
         os.makedirs(path)
 
+
+def load_config(ctx, path=None):
+    """
+    Loads a config from a file, returns an instance of `Glass` from config file.
+    """
+    def _config_path(path):
+        if os.path.exists(os.path.join(path, '.glass')):
+            return path
+
+        dir = os.path.dirname(path)
+        if dir == '/':
+            return None
+
+        # Windows
+        if re.match(r'[A-Z]:\\', dir):
+            return None
+
+        return _config_path(dir)
+
+    if not path:
+        path = os.getcwd()
+
+    config_path = _config_path(path)
+    if not config_path:
+        click.confirm("Could not find a .glass config folder. Would you like to make one now?", abort=True)
+        ctx.invoke(configure)
+
+    else:
+        if not os.path.exists(os.path.join(config_path, ".glass", "config")):
+            click.confirm("The path `.glass` path exists, but there is no config file. Would you like to make one now?", abort=True)
+            ctx.invoke(configure)
+
+        if os.getcwd() is not config_path:
+            click.echo("Changing working directory to glass root at : {}".format(config_path))
+            os.chdir(config_path)
+
+        with open(os.path.join(config_path, ".glass", "config"), 'r') as fb:
+            buffer = fb.read()
+            try:
+                cfg_dict = json.loads(buffer)
+            except ValueError:
+                logger.error('Error parsing json file', exc_info=True)
+                click.echo("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
+                click.confirm("Would you like to send your config to jsonlint now?", abort=True)
+                import webbrowser
+                from urllib.parse import quote
+                webbrowser.open('http://jsonlint.com?json={}'.format(quote(buffer)), new=2, autoraise=True)
+                exit(1)
+
+    return Glass(config_path=config_path, **cfg_dict)
+
+
 @click.group()
 @click.option('--debug/--no-debug', default=False)
+@click.version_option()
 @click.pass_context
 def cli(ctx, debug):
     if getattr(ctx, 'obj', None) is None:
@@ -26,7 +80,7 @@ def cli(ctx, debug):
 
     ctx.obj['DEBUG'] = debug
 
-    ctx.obj['glass'] = Glass.load_config(ctx)
+    ctx.obj['glass'] = load_config(ctx)
 
     if ctx.invoked_subcommand is None:
         click.echo('Glass CMS command line tool. Possible commands are:')
@@ -102,7 +156,7 @@ def get_file(ctx, remote_path, remote_context=None):
                 click.echo('Skipping File: {} - contents match'.format(remote_path))
                 return
         except IOError:
-            logger.error('IO Error in getting file, with sha', exc_info=True)
+            click.echo('Local IO Error in getting file, with sha: {}'.format(content_sha))
 
     click.echo('Getting File: {}'.format(remote_path))
     resp = glass.get_site_resource(remote_path)
@@ -114,7 +168,10 @@ def get_file(ctx, remote_path, remote_context=None):
                 if chunk: # filter out keep-alive new chunks
                     fb.write(chunk)
     except IOError:
-        logger.error('IO Error in getting file', exc_info=True)
+        click.echo('Local IO Error in getting file {}'.format(remote_path))
+    except PermissionError:
+        click.echo('Permission Error in getting file {}'.format(remote_path))
+
 
 
 @cli.command()

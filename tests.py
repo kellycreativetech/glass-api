@@ -105,52 +105,57 @@ class APITests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    out = StringIO()
-    runner = unittest.TextTestRunner(stream=out, descriptions=True, verbosity=1)
+    python_version = sys.version_info.major
+    if python_version < 3:
+        unittest.main()
 
-    start = datetime.datetime.utcnow()
-    main = unittest.main(
-        testRunner=runner,
-        exit=False
-    )
-    end = datetime.datetime.utcnow()
-    microseconds = (start - end).microseconds
+    else:
+        out = StringIO()
+        runner = unittest.TextTestRunner(stream=out, descriptions=True, verbosity=1)
 
-    out.seek(0)
-    results = out.read()
-    success = 'FAILED' not in results
-
-    counts = re.search('Ran (\d+) test', results)
-    test_count = int(counts.groups()[0])
-
-    if environ.get('SLACK_URL'):
-        requests.post(
-            environ['SLACK_URL'],
-            data=json.dumps({
-                "username": "Python API Tests",
-                "icon_emoji": ":snake:" if success else ":no_entry:",
-                "channel": "glass-tests",
-                "text": """{out}
-                    """.format(
-                    out=results,
-                ),
-            })
+        start = datetime.datetime.utcnow()
+        main = unittest.main(
+            testRunner=runner,
+            exit=False
         )
+        end = datetime.datetime.utcnow()
+        microseconds = (start - end).microseconds
 
-    # Send run data to elasticsearch
-    if environ.get('ELASTIC_URL'):
-        resp = requests.post("{url}/internal/pythonapi/".format(**{
-            "url": environ['ELASTIC_URL'],
-        }),
-             data=json.dumps({
-                 "results": results,
-                 "microseconds": microseconds,
-                 "timestamp": end.isoformat(),
-                 "success": success,
-                 "test_count": test_count,
-             }),
-             auth=(environ['ELASTIC_USERNAME'], environ['ELASTIC_PASSWORD'])
-        )
+        out.seek(0)
+        results = out.read()
+        success = 'FAILED' not in results
 
-    sys.stderr.write(results)
-    sys.exit(0 if success else 1)
+        counts = re.search('Ran (\d+) test', results)
+        test_count = int(counts.groups()[0])
+
+        if environ.get('SLACK_URL'):
+            requests.post(
+                environ['SLACK_URL'],
+                data=json.dumps({
+                    "username": "Python API Tests",
+                    "icon_emoji": ":snake:" if success else ":no_entry:",
+                    "channel": "glass-tests",
+                    "text": """{out}
+                        """.format(
+                        out=results,
+                    ),
+                })
+            )
+
+        # Send run data to elasticsearch
+        if environ.get('ELASTIC_URL'):
+            resp = requests.post("{url}/internal/pythonapi/".format(**{
+                "url": environ['ELASTIC_URL'],
+            }),
+                 data=json.dumps({
+                     "results": results,
+                     "microseconds": microseconds,
+                     "timestamp": end.isoformat(),
+                     "success": success,
+                     "test_count": test_count,
+                 }),
+                 auth=(environ['ELASTIC_USERNAME'], environ['ELASTIC_PASSWORD'])
+            )
+
+        sys.stderr.write(results)
+        sys.exit(0 if success else 1)

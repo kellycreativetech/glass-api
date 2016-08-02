@@ -1,5 +1,4 @@
 
-import click
 import requests
 import os, os.path, json, re
 import pathspec
@@ -190,58 +189,6 @@ class Glass(object):
 
     def create_data(self, id, data):
         return self.site_req('siteapi/data/new.json'.format(id), 'post', json=data)
-
-
-    @classmethod
-    def load_config(cls, ctx, path=None):
-        """
-        Loads a config from a file, returns an instance of `Glass` from config file.
-        """
-        def _config_path(path):
-            if os.path.exists(os.path.join(path, '.glass')):
-                return path
-
-            dir = os.path.dirname(path)
-            if dir == '/':
-                return None
-
-            # Windows
-            if re.match(r'[A-Z]:\\', dir):
-                return None
-
-            return _config_path(dir)
-
-        if not path:
-            path = os.getcwd()
-
-        config_path = _config_path(path)
-        if not config_path:
-            click.confirm("Could not find a .glass config folder. Would you like to make one now?", abort=True)
-            ctx.invoke(configure)
-
-        else:
-            if not os.path.exists(os.path.join(config_path, ".glass", "config")):
-                click.confirm("The path `.glass` path exists, but there is no config file. Would you like to make one now?", abort=True)
-                ctx.invoke(configure)
-
-            if os.getcwd() is not config_path:
-                click.echo("Changing working directory to glass root at : {}".format(config_path))
-                os.chdir(config_path)
-
-            with open(os.path.join(config_path, ".glass", "config"), 'r') as fb:
-                buffer = fb.read()
-                try:
-                    cfg_dict = json.loads(buffer)
-                except ValueError:
-                    logger.error('Error parsing json file', exc_info=True)
-                    click.echo("Your glass config is not a valid json file. Maybe try checking it at: http://jsonlint.com/")
-                    click.confirm("Would you like to send your config to jsonlint now?", abort=True)
-                    import webbrowser
-                    from urllib.parse import quote
-                    webbrowser.open('http://jsonlint.com?json={}'.format(quote(buffer)), new=2, autoraise=True)
-                    exit(1)
-
-        return cls(config_path=config_path, **cfg_dict)
 
     def load_ignore(self):
         """
