@@ -4,7 +4,11 @@ Glass Website Management Command Line Client
 
 Glass is a website management platform made by Kelly Creative Tech. 
 
-Current Build Status: <img src="https://travis-ci.org/kellycreativetech/glass-api.svg" />
+Current Build Status: |status|
+
+.. |status| image:: https://travis-ci.org/kellycreativetech/glass-api.svg
+
+This package is both the python API and the CLI
 
 Setting up a new site
 ---------------------
@@ -31,6 +35,8 @@ These instructions assume basic knowlege of the Terminal, and VirtualEnv Wrapper
 
 Go into, or make a directory for a new site
 
+..code shell::
+
     $> cd ~/Projects/kct_clients/
     $> mkdir issackelly.com
     $> cd issackelly.com
@@ -48,6 +54,7 @@ Go into, or make a directory for a new site
        5. !~~~~
    Which which site would you like to configure in this directory?: 1
    Writing config file to .glass/config
+
 
 
 First, pull down all of the project files from the server. This will override anything that you have not yet uploaded, so you probably don't want to use this command more than once when you start the project.
