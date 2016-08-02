@@ -26,7 +26,11 @@ client = Client(
 )
 handler = OpbeatHandler(client)
 import logging
-from json.decoder import JSONDecodeError
+
+try:
+    from json.decoder import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
 
 logger = logging.getLogger()
 logger.addHandler(handler)
