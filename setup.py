@@ -50,7 +50,6 @@ setup(
         'requests==2.10.0',
         'pathspec==0.3.4',
         'watchdog==0.8.3',
-        'opbeat==3.3.4',
     ],
     long_description=readme + '\n\n' + history,
 )

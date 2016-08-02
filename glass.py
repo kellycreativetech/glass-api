@@ -13,18 +13,6 @@ import pathspec
 from pathspec.gitignore import GitIgnorePattern
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-from opbeat import Client
-from opbeat.handlers.logging import OpbeatHandler
-
-
-### Please do not abuse these credentials. Please change them if you copy this work.
-### For your own sake and mine. This is here so I can find and help with CLI errors. --Issac
-client = Client(
-    organization_id='80ea519a2fa64c9db8c6902d37f4c120',
-    app_id='ca7c90603a',
-    secret_token='9991f61aede8ddcfd1db4671085739312fa49852',
-)
-handler = OpbeatHandler(client)
 import logging
 
 try:
@@ -33,8 +21,6 @@ except ImportError:
     JSONDecodeError = ValueError
 
 logger = logging.getLogger()
-logger.addHandler(handler)
-
 
 def mkdir_p(path):
     if path and not os.path.exists(path):
