@@ -4,6 +4,8 @@ Glass Website Management Command Line Client
 
 Glass is a website management platform made by Kelly Creative Tech. 
 
+Current Build Status: <img src="https://travis-ci.org/kellycreativetech/glass-api.svg" />
+
 Setting up a new site
 ---------------------
 
