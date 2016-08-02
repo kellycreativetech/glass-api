@@ -75,6 +75,7 @@ class Glass(object):
             self.site['url'] += '/'
 
     def __setattr__(self, key, val):
+        old_domain = '------'
         if getattr(self, 'domain', None):
             old_domain = self.domain
         super(Glass, self).__setattr__(key, val)
@@ -225,7 +226,6 @@ class Glass(object):
                 return path
 
             dir = os.path.dirname(path)
-            print(dir)
             if dir == '/':
                 return None
             
