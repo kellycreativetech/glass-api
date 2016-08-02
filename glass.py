@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 __title__ = 'glass-cli'
-__version__ = '0.9.2a2'
+__version__ = '0.9.2a3'
 __build__ = 0x000902
 __author__ = 'Servee LLC - Issac Kelly'
 __license__ = 'Apache 2.0'
