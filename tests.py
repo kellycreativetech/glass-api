@@ -105,7 +105,7 @@ class APITests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    python_version = sys.version_info.major
+    python_version = sys.version_info[0]
     if python_version < 3:
         unittest.main()
 
