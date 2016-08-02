@@ -9,7 +9,7 @@ with open('README.rst', 'r') as f:
 with open('HISTORY.rst', 'r') as f:
     history = f.read()
 
-with open('glass.py', 'r') as fd:
+with open('glass/__init__.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         fd.read(), re.MULTILINE).group(1)
 
@@ -20,11 +20,10 @@ setup(
     name="glass-api",
     version=version,
     packages=find_packages(),
-    scripts=['glass.py'],
     package_data={},
     entry_points={
           'console_scripts': [
-              'glass = glass:cli'
+              'glass = glass.cli:cli'
           ]
     },
     classifiers=(
