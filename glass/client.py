@@ -24,13 +24,13 @@ class Glass(object):
         self.domain = domain
         self.site = {
             "domain": domain,
-            "url": "http://{}.temp.servee.com".format(self.domain)
+            "url": "http://{}.sites.glass".format(self.domain)
         }
 
         site = kwargs.pop('site', None)
         if site and site['domain'] and not self.domain:
             self.domain = site['domain']
-            self.site['url'] = "http://{}.temp.servee.com".format(self.domain)
+            self.site['url'] = "http://{}.sites.glass".format(self.domain)
 
         self.exclude = kwargs.pop('exclude', [])
         self.exclude.append('.glass')
@@ -38,13 +38,13 @@ class Glass(object):
         self.config_path = config_path
 
         if not glass_url:
-            self.glass_url = os.getenv('GLASS_PATROL_URL', 'https://glass.servee.com/')
+            self.glass_url = os.getenv('GLASS_PATROL_URL', 'https://website.glass/')
 
         if self.glass_url[-1] != '/':
             self.glass_url += '/'
 
         if self.site and self.site.get("domain") and not self.site.get("url"):
-            self.site["url"] = "http://{}.temp.servee.com".format(self.site["domain"])
+            self.site["url"] = "http://{}.sites.glass".format(self.site["domain"])
 
         if self.site and self.site.get('url') and (self.site['url'][-1] != '/'):
             self.site['url'] += '/'

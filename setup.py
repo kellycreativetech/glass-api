@@ -45,7 +45,7 @@ setup(
     license='Apache 2.0',
     author="Servee LLC - Issac Kelly",
     author_email="issac@servee.com",
-    url="https://glass.servee.com/static/docs/",
+    url="http://www.website.glass/",
     keywords='glass CMS',
     description="Glass CLI",
     install_requires=[

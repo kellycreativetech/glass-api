@@ -21,7 +21,7 @@ class APITests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.shared_domain_root = environ.get('GLASS_SHARED_DOMAIN_ROOT', 'temp.servee.com')
+        cls.shared_domain_root = environ.get('GLASS_SHARED_DOMAIN_ROOT', 'sites.glass')
         cls.domain = environ.get('GLASS_DOMAIN', None)
         cls.email = environ.get('GLASS_EMAIL', None)
         cls.password = environ.get('GLASS_PASSWORD', None)
