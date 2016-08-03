@@ -1,5 +1,6 @@
 import click
 import os, os.path, json, mimetypes, hashlib, time, re
+from sys import exit
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from glass.client import Glass
@@ -148,7 +149,7 @@ def configure(ctx):
     with open('.glass/config', 'w') as f:
         f.write(json.dumps(config, indent=4))
 
-    exit(1)
+    exit(0)
 
 
 @cli.command()
@@ -165,6 +166,8 @@ def get_file(ctx, remote_path, remote_context=None):
     if remote_path[0] == "/":
         remote_path = remote_path[1:]
 
+    local_path = remote_path.replace('/', os.path.sep)
+
     if remote_context and remote_context.get('sha', None):
         content_sha = hashlib.sha1()
         try:
@@ -174,7 +177,7 @@ def get_file(ctx, remote_path, remote_context=None):
                 click.echo('Skipping File: {} - contents match'.format(remote_path))
                 return
         except IOError:
-            click.echo('Local IO Error in getting file, with sha: {}'.format(content_sha.hexdigest))
+            click.echo('Local IO Error in getting file, with sha: {}'.format(content_sha.hexdigest()))
 
     click.echo('Getting File: {}'.format(remote_path))
     resp = glass.get_site_resource(remote_path)
