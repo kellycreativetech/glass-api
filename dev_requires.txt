@@ -1,0 +1,3 @@
+ipdb
+pyinstaller
+twine

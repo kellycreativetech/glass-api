@@ -2,8 +2,11 @@ import click
 import os, os.path, json, mimetypes, hashlib, time, re
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-from .client import Glass
+from glass.client import Glass
+from glass import __version__, __build__
 import logging
+import requests
+from distutils import version
 
 try:
     from json.decoder import JSONDecodeError
@@ -72,9 +75,10 @@ def load_config(ctx, path=None):
 
 @click.group()
 @click.option('--debug/--no-debug', default=False)
-@click.version_option()
+@click.version_option(__version__)
 @click.pass_context
 def cli(ctx, debug):
+    version_check()
     if getattr(ctx, 'obj', None) is None:
         ctx.obj = {}
 
@@ -92,6 +96,18 @@ def cli(ctx, debug):
         click.echo('')
 
     click.echo('Debug mode is %s' % ('on' if debug else 'off'))
+
+
+def version_check():
+    response = requests.get("https://pypi.python.org/pypi/glass-api/json")
+    try:
+        assert response.status_code == 200
+    except AssertionError:
+        logger.warn("Unable to parse version check")
+
+    data = response.json()
+    if version.LooseVersion(data['info']['version']) > version.LooseVersion(__version__):
+        click.echo("You're running an old version. Contact support@website.glass if you need help upgrading.")
 
 
 
@@ -146,6 +162,8 @@ def new_site(ctx):
 @click.pass_context
 def get_file(ctx, remote_path, remote_context=None):
     glass = ctx.obj['glass']
+    if remote_path[0] == "/":
+        remote_path = remote_path[1:]
 
     if remote_context and remote_context.get('sha', None):
         content_sha = hashlib.sha1()
@@ -156,7 +174,7 @@ def get_file(ctx, remote_path, remote_context=None):
                 click.echo('Skipping File: {} - contents match'.format(remote_path))
                 return
         except IOError:
-            click.echo('Local IO Error in getting file, with sha: {}'.format(content_sha))
+            click.echo('Local IO Error in getting file, with sha: {}'.format(content_sha.hexdigest))
 
     click.echo('Getting File: {}'.format(remote_path))
     resp = glass.get_site_resource(remote_path)
