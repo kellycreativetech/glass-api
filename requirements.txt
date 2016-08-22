@@ -1,5 +1,5 @@
 click==6.6
-requests==2.10.0
-pathspec==0.3.4
+requests==2.11.1
+pathspec==0.4.0
 watchdog==0.8.3
 opbeat==3.3.4
