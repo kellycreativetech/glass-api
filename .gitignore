@@ -1,6 +1,7 @@
 run_tests.sh
 *.pyc
-glass.egg-info
+*.egg-info
+/build
 /dist
 /env
 /glass_cli.egg-info
