@@ -238,7 +238,12 @@ def put_all(ctx):
         for rf in remote_files:
             if f == rf['path']:
                 break
-        ctx.invoke(put_file, f, rf)
+        #TODO
+        #
+        # if rf:
+        #   CHECK CONTENTS, Make smart decision about what to do...
+
+        ctx.invoke(put_file, f)
 
 
 class FSEventHandler(FileSystemEventHandler):
