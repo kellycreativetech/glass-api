@@ -104,7 +104,7 @@ Start with the basics
 ---------------------
 
 If this isn't your first experience with the Terminal and you already have `VituralEnv Wrapper 
-<https://virtualenvwrapper.readthedocs.io/en/latest/install.html>`_. installed, proceed to **Step 1** above. If not, and you're on a mac, follow these steps. Open the Terminal. (It's in Applications/Utilities. `Here's a quick introduction to the Terminal<http://blog.teamtreehouse.com/introduction-to-the-mac-os-x-command-line>`_.) Paste these lines, one at a time, hitting enter between each. (This applies to the rest of the instructions below.)
+<https://virtualenvwrapper.readthedocs.io/en/latest/install.html>`_. installed, proceed to **Step 1** above. If not, and you're on a mac, follow these steps. Open the Terminal. (It's in Applications/Utilities. `Here's a quick introduction to the Terminal <http://blog.teamtreehouse.com/introduction-to-the-mac-os-x-command-line>`_.) Paste these lines, one at a time, hitting enter between each. (This applies to the rest of the instructions below.)
 
 Install easy_install:
 
