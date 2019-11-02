@@ -50,7 +50,7 @@ setup(
     description="Glass CLI",
     install_requires=[
         'click==6.6',
-        'requests==2.10.0',
+        'requests==2.20.0',
         'pathspec==0.3.4',
         'watchdog==0.8.3',
     ],
